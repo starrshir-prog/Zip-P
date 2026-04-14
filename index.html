@@ -1,0 +1,1271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Zip Intake Flow — PoC by Shir</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#F8F7F4;--sur:#FFFFFF;--sur2:#F2F0EC;
+  --bd:#E5E2DB;--bd2:#D6D2C8;
+  --tx:#1A1916;--tx2:#6B6760;--tx3:#9C9891;
+  --blue:#1A56DB;--blue-l:#EBF0FD;--blue-m:#C7D7FA;
+  --green:#0E9F6E;--green-l:#E8F8F4;
+  --amber:#C27803;--amber-l:#FEF3CD;
+  --red:#C81E1E;--red-l:#FDE8E8;
+  --purple:#7E3AF2;--purple-l:#EDE9FE;
+  --orange:#D03801;--orange-l:#FEF0E6;
+  --r:10px;--rs:6px;
+  --sh:0 1px 3px rgba(0,0,0,.06),0 1px 2px rgba(0,0,0,.04);
+  --shm:0 4px 12px rgba(0,0,0,.08),0 2px 4px rgba(0,0,0,.04);
+  --shl:0 12px 40px rgba(0,0,0,.12),0 4px 12px rgba(0,0,0,.06);
+}
+html,body{height:100%}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--tx);font-size:13.5px;line-height:1.5;display:flex;flex-direction:column;min-height:100vh}
+
+/* TOPBAR */
+.topbar{background:var(--sur);border-bottom:1px solid var(--bd);padding:0 24px;height:52px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:200}
+.logo{font-size:17px;font-weight:600;letter-spacing:-.4px;color:var(--blue)}
+.logo span{color:var(--tx)}
+.breadcrumb{display:flex;align-items:center;gap:6px;color:var(--tx3);font-size:12.5px}
+.breadcrumb b{color:var(--tx2);font-weight:500}
+.poc-badge{background:var(--purple-l);color:var(--purple);border-radius:20px;font-size:10.5px;font-weight:600;padding:3px 10px}
+.avatar{width:28px;height:28px;border-radius:50%;background:var(--blue);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600}
+
+.app{display:flex;flex-direction:column;min-height:100vh}
+.main{display:flex;flex:1;overflow:hidden;height:calc(100vh - 52px - 56px);position:relative}
+.content{flex:1;display:flex;overflow:hidden}
+
+/* FORM AREA */
+.form-area{flex:1;overflow-y:auto;padding:28px 32px 40px}
+
+/* ── AI BAR — more present ── */
+.ai-bar{background:var(--sur);border:2px solid var(--blue);border-radius:var(--r);padding:16px 18px;margin-bottom:24px;box-shadow:0 0 0 4px rgba(26,86,219,.07),var(--shm);transition:box-shadow .2s}
+.ai-bar:focus-within{box-shadow:0 0 0 5px rgba(26,86,219,.13),var(--shm)}
+.ai-bar-label{display:flex;align-items:center;gap:7px;font-size:12px;font-weight:600;color:var(--blue);letter-spacing:.02em;margin-bottom:11px}
+.ai-pulse{width:8px;height:8px;border-radius:50%;background:var(--blue);animation:pulse 2s infinite;flex-shrink:0}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(.75)}}
+.ai-input-row{display:flex;gap:8px;align-items:center}
+.ai-input{flex:1;border:none;outline:none;background:var(--sur2);border-radius:var(--rs);padding:11px 14px;font-family:'DM Sans',sans-serif;font-size:13.5px;color:var(--tx)}
+.ai-input::placeholder{color:var(--tx3)}
+.ai-send{background:var(--blue);color:#fff;border:none;border-radius:var(--rs);padding:11px 18px;font-size:13px;font-weight:500;cursor:pointer;white-space:nowrap;transition:opacity .15s;font-family:'DM Sans',sans-serif}
+.ai-send:hover{opacity:.87}
+.demo-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
+.chip{background:var(--blue-l);color:var(--blue);border:1px solid var(--blue-m);border-radius:20px;padding:5px 13px;font-size:11.5px;font-weight:500;cursor:pointer;transition:all .15s}
+.chip:hover{background:var(--blue-m);transform:translateY(-1px)}
+
+/* AI RESPONSE */
+.ai-response{background:var(--blue-l);border:1px solid var(--blue-m);border-radius:var(--r);padding:13px 15px;margin-bottom:18px;display:none;animation:fadeSlide .3s ease}
+.ai-response.show{display:block}
+@keyframes fadeSlide{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
+.ai-response-header{display:flex;align-items:center;gap:7px;font-size:11.5px;font-weight:600;color:var(--blue);margin-bottom:7px}
+.ai-response-text{font-size:13px;color:var(--tx);line-height:1.58}
+.typing{display:flex;gap:3px;align-items:center}
+.typing span{width:5px;height:5px;border-radius:50%;background:var(--blue);animation:tb 1.2s infinite}
+.typing span:nth-child(2){animation-delay:.2s}
+.typing span:nth-child(3){animation-delay:.4s}
+@keyframes tb{0%,80%,100%{transform:translateY(0)}40%{transform:translateY(-5px)}}
+
+/* FORM hidden until AI fills */
+.form-body{display:none;animation:fadeSlide .4s ease}
+.form-body.show{display:block}
+
+/* CARDS */
+.card{background:var(--sur);border:1px solid var(--bd);border-radius:var(--r);margin-bottom:16px;overflow:hidden;box-shadow:var(--sh)}
+.card-header{padding:12px 16px;border-bottom:1px solid var(--bd);display:flex;align-items:center;justify-content:space-between}
+.card-title{font-size:13px;font-weight:600;color:var(--tx);display:flex;align-items:center;gap:8px}
+.step{width:21px;height:21px;border-radius:50%;background:var(--blue);color:#fff;font-size:10.5px;font-weight:700;display:flex;align-items:center;justify-content:center;transition:background .3s}
+.step.done{background:var(--green)}
+.card-body{padding:16px}
+.field{margin-bottom:14px}
+.field:last-child{margin-bottom:0}
+.label{font-size:12px;font-weight:500;color:var(--tx2);margin-bottom:5px;display:flex;align-items:center;gap:5px}
+.req{color:var(--red)}
+.input,.select,.textarea{width:100%;padding:8px 12px;border:1px solid var(--bd2);border-radius:var(--rs);background:var(--sur);color:var(--tx);font-family:'DM Sans',sans-serif;font-size:13px;transition:border-color .15s,box-shadow .15s;outline:none}
+.input:focus,.select:focus,.textarea:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(26,86,219,.1)}
+.input.ai-filled{background:var(--blue-l);border-color:var(--blue-m);animation:fillFlash .5s ease}
+@keyframes fillFlash{0%{background:var(--blue-m)}100%{background:var(--blue-l)}}
+.textarea{resize:vertical;min-height:76px}
+.field-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.ai-tag{display:inline-flex;align-items:center;gap:4px;background:var(--blue-l);color:var(--blue);border-radius:4px;font-size:10.5px;font-weight:600;padding:2px 7px}
+
+/* VENDOR CARD */
+.vendor-card{border:1px solid var(--bd);border-radius:var(--rs);overflow:hidden;margin-top:10px}
+.vendor-header{display:flex;align-items:center;gap:10px;padding:10px 13px;background:var(--sur2)}
+.vendor-logo{width:34px;height:34px;border-radius:7px;background:var(--blue);display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;font-weight:700;flex-shrink:0}
+.dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.dot.green{background:var(--green)}.dot.amber{background:var(--amber)}.dot.red{background:var(--red)}
+
+/* CHAT */
+.chat-wrap{display:flex;flex-direction:column;height:100%;overflow:hidden}
+.chat-to-bar{padding:0 0 10px;border-bottom:1px solid var(--bd);margin-bottom:10px;flex-shrink:0}
+.chat-to-label{font-size:10.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--tx3);margin-bottom:6px}
+.chat-recipients{display:flex;flex-wrap:wrap;gap:5px}
+.chat-recipient{display:flex;align-items:center;gap:5px;background:var(--sur2);border:1px solid var(--bd);border-radius:20px;padding:4px 10px;font-size:11.5px;color:var(--tx2);cursor:pointer;transition:all .15s;user-select:none}
+.chat-recipient:hover{background:var(--blue-l);border-color:var(--blue-m);color:var(--blue)}
+.chat-recipient.active{background:var(--blue-l);border-color:var(--blue);color:var(--blue);font-weight:500}
+.chat-recipient-dot{width:6px;height:6px;border-radius:50%;background:var(--green);flex-shrink:0}
+.chat-recipient-dot.offline{background:var(--tx3)}
+.chat-messages{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:10px;padding-bottom:8px;min-height:0}
+.chat-msg{display:flex;flex-direction:column;gap:2px;animation:fadeSlide .25s ease}
+.chat-msg.me{align-items:flex-end}
+.chat-msg.them{align-items:flex-start}
+.chat-bubble{max-width:86%;padding:8px 11px;border-radius:10px;font-size:12.5px;line-height:1.5}
+.chat-bubble.me{background:var(--blue);color:#fff;border-bottom-right-radius:3px}
+.chat-bubble.them{background:var(--sur2);color:var(--tx);border:1px solid var(--bd);border-bottom-left-radius:3px}
+.chat-meta{font-size:10.5px;color:var(--tx3);padding:0 4px}
+.chat-typing{display:flex;align-items:center;gap:6px;padding:6px 0}
+.chat-typing-dots{display:flex;gap:3px}
+.chat-typing-dots span{width:5px;height:5px;border-radius:50%;background:var(--tx3);animation:tb 1.2s infinite}
+.chat-typing-dots span:nth-child(2){animation-delay:.2s}
+.chat-typing-dots span:nth-child(3){animation-delay:.4s}
+.chat-input-row{display:flex;gap:6px;align-items:flex-end;flex-shrink:0;padding-top:10px;border-top:1px solid var(--bd);margin-top:4px}
+.chat-input{flex:1;border:1px solid var(--bd2);border-radius:var(--rs);padding:8px 11px;font-family:"DM Sans",sans-serif;font-size:13px;color:var(--tx);background:var(--sur);outline:none;resize:none;min-height:36px;max-height:90px;transition:border-color .15s}
+.chat-input:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(26,86,219,.1)}
+.chat-send-btn{background:var(--blue);color:#fff;border:none;border-radius:var(--rs);width:34px;height:34px;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;font-size:15px;transition:opacity .15s}
+.chat-send-btn:hover{opacity:.87}
+.chat-empty{text-align:center;padding:20px 14px;color:var(--tx3);font-size:12px;line-height:1.6}
+
+/* RIGHT PANEL */
+.right-panel{width:270px;flex-shrink:0;border-left:1px solid var(--bd);background:var(--sur);display:flex;flex-direction:column;overflow:hidden}
+.panel-tabs{display:flex;border-bottom:1px solid var(--bd);flex-shrink:0}
+.panel-tab{flex:1;padding:10px 6px;text-align:center;font-size:11.5px;font-weight:500;color:var(--tx3);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s}
+.panel-tab.active{color:var(--blue);border-bottom-color:var(--blue);background:var(--blue-l)}
+.panel-content{flex:1;overflow-y:auto;padding:14px}
+.section-label{font-size:10.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--tx3);margin-bottom:10px}
+
+/* AGENT FEED */
+.agent-item{display:flex;gap:9px;padding:10px 0;border-bottom:1px solid var(--bd);animation:fadeSlide .35s ease}
+.agent-item:last-child{border-bottom:none}
+.agent-icon{width:30px;height:30px;border-radius:7px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:15px}
+.agent-icon.spinning{animation:spin 1.4s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.agent-body{flex:1;min-width:0}
+.agent-name{font-size:12px;font-weight:600;color:var(--tx)}
+.agent-src{font-size:10.5px;color:var(--tx3);margin-top:1px}
+.agent-msg{font-size:11.5px;color:var(--tx2);margin-top:3px;line-height:1.4}
+.agent-status{font-size:10.5px;font-weight:600;padding:2px 7px;border-radius:4px;margin-top:5px;display:inline-block}
+.agent-status.running{background:var(--amber-l);color:var(--amber)}
+.agent-status.done{background:var(--green-l);color:var(--green)}
+.agent-status.warning{background:var(--amber-l);color:var(--amber)}
+.agent-status.error{background:var(--red-l);color:var(--red)}
+.agent-status.info{background:var(--blue-l);color:var(--blue)}
+
+/* COMPLIANCE SWEEP */
+.compliance-sweep{background:var(--sur);border:1.5px solid var(--bd2);border-radius:var(--r);margin-bottom:16px;overflow:hidden;box-shadow:var(--shm);display:none}
+.compliance-sweep.show{display:block;animation:fadeSlide .4s ease}
+.sweep-header{padding:13px 16px;background:linear-gradient(135deg,#1A1E3E 0%,#1A56DB 100%);display:flex;align-items:center;gap:10px}
+.sweep-title{font-size:13.5px;font-weight:600;color:#fff;flex:1}
+.sweep-sub{font-size:11.5px;color:rgba(255,255,255,.7);margin-top:2px}
+.sweep-body{padding:14px 16px}
+.sweep-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+.sa{border:1px solid var(--bd);border-radius:var(--rs);padding:11px 12px;transition:all .3s;background:var(--sur)}
+.sa.running{border-color:var(--amber);background:var(--amber-l)}
+.sa.done{border-color:var(--green);background:var(--green-l)}
+.sa.warning{border-color:var(--amber);background:var(--amber-l)}
+.sa.error{border-color:var(--red);background:var(--red-l);animation:shake .4s ease}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}
+.sa-header{display:flex;align-items:center;gap:7px;margin-bottom:5px}
+.sa-icon{font-size:16px}
+.sa-name{font-size:12px;font-weight:600;color:var(--tx);flex:1}
+.sa-badge{font-size:10px;font-weight:700;padding:1px 6px;border-radius:4px}
+.sa-badge.running{background:var(--amber-l);color:var(--amber);animation:pulse 1.5s infinite}
+.sa-badge.done{background:var(--green-l);color:var(--green)}
+.sa-badge.warning{background:var(--amber-l);color:var(--amber)}
+.sa-badge.error{background:var(--red-l);color:var(--red)}
+.sa-msg{font-size:11.5px;color:var(--tx2);line-height:1.4}
+.sa-src{font-size:10.5px;color:var(--tx3);margin-top:3px;font-style:italic}
+.sweep-finding{background:var(--amber-l);border:1px solid var(--amber);border-radius:var(--rs);padding:10px 12px;margin-top:8px;display:none}
+.sweep-finding.show{display:flex;gap:9px;animation:fadeSlide .3s ease}
+.sweep-finding.error{background:var(--red-l);border-color:var(--red)}
+.sf-icon{font-size:16px;flex-shrink:0;margin-top:1px}
+.sf-title{font-size:12px;font-weight:600;color:var(--amber)}
+.sf-title.error{color:var(--red)}
+.sf-msg{font-size:12px;color:var(--tx);margin-top:2px;line-height:1.5}
+.sweep-ok{background:var(--green-l);border:1px solid var(--green);border-radius:var(--rs);padding:10px 12px;margin-top:8px;display:none}
+.sweep-ok.show{display:flex;align-items:center;gap:9px;font-size:12px;color:var(--green);font-weight:500;animation:fadeSlide .3s ease}
+
+/* NEW VENDOR EXPLAINER */
+.new-vendor-explainer{background:#FFF8F0;border:1.5px solid var(--orange);border-radius:var(--r);padding:14px 16px;margin-top:12px;display:none;animation:fadeSlide .4s ease}
+.new-vendor-explainer.show{display:block}
+.nve-title{font-size:12.5px;font-weight:600;color:var(--orange);margin-bottom:8px;display:flex;align-items:center;gap:7px}
+.nve-step{display:flex;gap:9px;margin-bottom:8px;align-items:flex-start}
+.nve-step:last-child{margin-bottom:0}
+.nve-num{width:20px;height:20px;border-radius:50%;background:var(--orange);color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px}
+.nve-text{font-size:12px;color:var(--tx);line-height:1.5}
+.nve-text b{font-weight:600}
+
+/* HISTORY */
+.history-item{padding:10px 12px;border:1px solid var(--bd);border-radius:var(--rs);margin-bottom:8px;cursor:pointer;transition:all .15s}
+.history-item:hover{border-color:var(--blue-m);background:var(--blue-l);transform:translateX(2px)}
+.history-title{font-weight:600;font-size:12.5px;color:var(--tx)}
+.history-meta{font-size:11px;color:var(--tx3);margin-top:2px;font-family:'DM Mono',monospace}
+.history-tags{display:flex;gap:4px;margin-top:6px;flex-wrap:wrap}
+.htag{background:var(--sur2);border:1px solid var(--bd);border-radius:4px;font-size:10.5px;color:var(--tx2);padding:2px 6px}
+
+/* SUBMIT BAR */
+.submit-bar{padding:14px 28px;background:var(--sur);border-top:1px solid var(--bd);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;height:56px}
+.submit-status{font-size:12.5px;color:var(--tx2);display:flex;align-items:center;gap:7px}
+.submit-actions{display:flex;gap:8px}
+.btn{padding:8px 18px;border-radius:var(--rs);font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;cursor:pointer;border:none;transition:all .15s}
+.btn-ghost{background:none;border:1px solid var(--bd2);color:var(--tx2)}
+.btn-ghost:hover{background:var(--sur2);color:var(--tx)}
+.btn-primary{background:var(--blue);color:#fff}
+.btn-primary:hover{opacity:.88}
+.btn-primary:disabled{opacity:.4;cursor:default}
+.btn-success{background:var(--green);color:#fff}
+.empty-state{text-align:center;padding:28px 14px;color:var(--tx3);font-size:12.5px;line-height:1.6}
+
+/* VIRTUAL CARD PROMPT */
+.vcard-prompt{background:var(--sur);border:1.5px solid var(--blue);border-radius:var(--r);padding:14px 16px;margin-bottom:14px;box-shadow:var(--shm);display:none;animation:fadeSlide .4s ease}
+.vcard-prompt.show{display:block}
+.vcp-head{display:flex;align-items:center;gap:8px;margin-bottom:9px}
+.vcp-icon{font-size:20px}
+.vcp-title{font-size:13px;font-weight:600;color:var(--tx)}
+.vcp-sub{font-size:11.5px;color:var(--tx2);margin-top:1px}
+.vcp-body{font-size:12.5px;color:var(--tx);line-height:1.55;margin-bottom:12px}
+.vcp-card-row{display:flex;align-items:center;gap:10px;background:var(--sur2);border:1px solid var(--bd);border-radius:var(--rs);padding:10px 13px;margin-bottom:12px}
+.vcp-card-chip{background:linear-gradient(135deg,#1A56DB,#7E3AF2);color:#fff;border-radius:6px;padding:5px 10px;font-size:11px;font-weight:600;font-family:'DM Mono',monospace;letter-spacing:.04em;flex-shrink:0}
+.vcp-card-info{flex:1}
+.vcp-card-name{font-size:12px;font-weight:600;color:var(--tx)}
+.vcp-card-meta{font-size:11px;color:var(--tx3);margin-top:1px}
+.vcp-bar{height:6px;background:var(--bd);border-radius:3px;margin-top:6px;overflow:hidden}
+.vcp-bar-fill{height:100%;border-radius:3px;background:var(--amber);transition:width 1s ease}
+.vcp-actions{display:flex;gap:8px;flex-wrap:wrap}
+.vcp-btn{padding:7px 14px;border-radius:var(--rs);font-family:'DM Sans',sans-serif;font-size:12.5px;font-weight:500;cursor:pointer;border:none;transition:all .15s}
+.vcp-btn.primary{background:var(--blue);color:#fff}
+.vcp-btn.primary:hover{opacity:.88}
+.vcp-btn.ghost{background:none;border:1px solid var(--bd2);color:var(--tx2)}
+.vcp-btn.ghost:hover{background:var(--sur2);color:var(--tx)}
+.vcp-result{font-size:12px;padding:8px 11px;border-radius:var(--rs);margin-top:10px;display:none;animation:fadeSlide .3s ease}
+.vcp-result.show{display:block}
+.vcp-result.sent{background:var(--green-l);color:var(--green);border:1px solid var(--green)}
+.vcp-result.skip{background:var(--sur2);color:var(--tx2);border:1px solid var(--bd)}
+
+/* FIRST-TIME HINT OVERLAY */
+.hint-overlay{position:fixed;top:0;left:0;right:0;bottom:0;width:100%;height:100%;background:rgba(10,10,8,.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:24px;animation:fadeIn .3s ease;touch-action:auto;-webkit-overflow-scrolling:touch}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes fadeOut{from{opacity:1}to{opacity:0}}
+.hint-box{background:var(--sur);border-radius:16px;max-width:420px;width:100%;box-shadow:var(--shl);animation:popUp2 .4s cubic-bezier(.34,1.2,.64,1)}
+@keyframes popUp2{from{opacity:0;transform:translateY(28px) scale(.95)}to{opacity:1;transform:translateY(0) scale(1)}}
+.hint-head{padding:20px 22px 0;text-align:center}
+.hint-emoji{font-size:36px;margin-bottom:10px}
+.hint-title{font-size:18px;font-weight:600;letter-spacing:-.3px;color:var(--tx);margin-bottom:6px}
+.hint-sub{font-size:13px;color:var(--tx2);line-height:1.55}
+.hint-demos{padding:16px 22px;display:flex;flex-direction:column;gap:8px}
+.hint-demo{display:flex;align-items:flex-start;gap:11px;background:var(--blue-l);border:1px solid var(--blue-m);border-radius:var(--rs);padding:11px 13px;cursor:pointer;transition:all .15s;width:100%;text-align:left;font-family:inherit;font-size:inherit;-webkit-appearance:none;appearance:none;outline:none}
+.hint-demo:hover{background:var(--blue-m);transform:translateX(2px)}
+.hint-demo-num{width:22px;height:22px;border-radius:50%;background:var(--blue);color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px}
+.hint-demo-text{flex:1}
+.hint-demo-title{font-size:13px;font-weight:600;color:var(--blue)}
+.hint-demo-desc{font-size:12px;color:var(--tx2);margin-top:2px;line-height:1.4}
+.hint-foot{padding:14px 22px 20px;text-align:center}
+.hint-skip{font-size:12px;color:var(--tx3);cursor:pointer;text-decoration:underline;text-underline-offset:2px;background:none;border:none;font-family:inherit;padding:0;-webkit-appearance:none}
+.hint-skip:hover{color:var(--tx2)}
+
+/* INSIGHT POPUP */
+.insight-popup{position:fixed;bottom:70px;right:24px;width:310px;background:var(--sur);border:1px solid var(--bd2);border-radius:var(--r);box-shadow:var(--shl);z-index:999;display:none}
+.insight-popup.show{display:block;animation:popUp .38s cubic-bezier(.34,1.56,.64,1)}
+@keyframes popUp{from{opacity:0;transform:translateY(18px) scale(.94)}to{opacity:1;transform:translateY(0) scale(1)}}
+.insight-header{padding:12px 14px;border-bottom:1px solid var(--bd);display:flex;align-items:center;gap:8px}
+.insight-title{font-weight:600;font-size:13px;flex:1}
+.insight-close{cursor:pointer;color:var(--tx3);font-size:17px;line-height:1;padding:2px}
+.insight-close:hover{color:var(--tx)}
+.insight-body{padding:12px 14px}
+.insight-row{display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid var(--bd)}
+.insight-row:last-of-type{border-bottom:none}
+.insight-key{font-size:11.5px;color:var(--tx2)}
+.insight-val{font-size:11.5px;font-weight:600}
+.insight-val.green{color:var(--green)}.insight-val.amber{color:var(--amber)}.insight-val.red{color:var(--red)}
+.score-bar-wrap{display:flex;align-items:center;gap:8px;margin-top:11px}
+.score-bar{flex:1;height:6px;background:var(--bd);border-radius:3px;overflow:hidden}
+.score-fill{height:100%;border-radius:3px;transition:width 1.3s ease}
+
+/* ICON RAIL */
+.icon-rail{width:48px;flex-shrink:0;background:var(--sur);border-right:1px solid var(--bd);display:flex;flex-direction:column;align-items:center;padding:10px 0;gap:4px;z-index:50}
+.rail-btn{width:36px;height:36px;border-radius:var(--rs);display:flex;align-items:center;justify-content:center;cursor:pointer;border:none;background:transparent;color:var(--tx3);font-size:18px;transition:all .15s;flex-shrink:0}
+.rail-btn:hover{background:var(--sur2);color:var(--tx2)}
+.rail-btn.active{background:var(--blue-l);color:var(--blue)}
+.rail-separator{width:24px;height:1px;background:var(--bd);margin:4px 0}
+
+/* RECENT DRAWER */
+.recent-drawer{position:absolute;left:48px;top:0;bottom:0;width:220px;background:var(--sur);border-right:1px solid var(--bd);display:flex;flex-direction:column;overflow:hidden;z-index:40;transform:translateX(-268px);transition:transform .22s cubic-bezier(.4,0,.2,1);box-shadow:none}
+.recent-drawer.open{transform:translateX(0);box-shadow:4px 0 16px rgba(0,0,0,.08)}
+.recent-drawer-head{padding:16px 14px 12px;border-bottom:1px solid var(--bd);flex-shrink:0;display:flex;align-items:center;justify-content:space-between}
+.recent-drawer-title{font-size:13px;font-weight:600;color:var(--tx)}
+.recent-drawer-close{cursor:pointer;color:var(--tx3);font-size:16px;line-height:1;background:none;border:none;padding:2px}
+.recent-drawer-close:hover{color:var(--tx)}
+.recent-drawer-body{flex:1;overflow-y:auto;padding:8px}
+.recent-pr-item{padding:9px 10px;border-radius:var(--rs);cursor:pointer;transition:all .15s;margin-bottom:2px}
+.recent-pr-item:hover{background:var(--sur2)}
+.recent-pr-item.active-pr{background:var(--blue-l)}
+.recent-pr-title{font-size:12px;font-weight:500;color:var(--tx);line-height:1.35;margin-bottom:3px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.recent-pr-meta{font-size:10.5px;color:var(--tx3);font-family:"DM Mono",monospace}
+.recent-pr-tag{display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:600;padding:1px 5px;border-radius:3px;margin-top:4px}
+.recent-pr-tag.approved{background:var(--green-l);color:var(--green)}
+
+/* push content when drawer opens */
+.main.drawer-open .form-area{margin-left:0}
+
+
+/* ── MOBILE ── */
+@media(max-width:768px){
+  /* hide panels that don't fit */
+  .right-panel{display:none}
+
+  /* icon rail: show but thinner, move to bottom as tab bar */
+  .icon-rail{
+    position:fixed;bottom:0;left:0;right:0;top:auto;
+    width:100%;height:52px;
+    flex-direction:row;justify-content:space-around;align-items:center;
+    border-right:none;border-top:1px solid var(--bd);
+    padding:0 24px;z-index:300;
+  }
+  .rail-btn{width:44px;height:44px;font-size:20px}
+  .rail-separator{width:1px;height:24px;margin:0 4px}
+
+  /* recent drawer: full width slide up from bottom on mobile */
+  .recent-drawer{
+    left:0;right:0;top:auto;bottom:52px;width:100%;
+    transform:translateY(110%);
+    border-right:none;border-top:1px solid var(--bd);
+    max-height:60vh;
+    border-radius:16px 16px 0 0;
+  }
+  .recent-drawer.open{transform:translateY(0)}
+
+  /* main: account for bottom tab bar */
+  .main{height:calc(100vh - 52px - 52px)}
+
+  /* form: tighter padding */
+  .form-area{padding:16px 16px 80px}
+
+  /* topbar: hide breadcrumb and badge */
+  .breadcrumb{display:none}
+  .poc-badge{display:none}
+
+  /* submit bar: above the tab bar */
+  .submit-bar{
+    position:fixed;bottom:52px;left:0;right:0;
+    padding:10px 16px;
+    border-top:1px solid var(--bd);
+    z-index:200;
+  }
+
+  /* field rows go single column */
+  .field-row{grid-template-columns:1fr}
+
+  /* sweep grid single col */
+  .sweep-grid{grid-template-columns:1fr}
+
+  /* ai bar: compact */
+  .ai-bar{padding:12px 14px}
+  .ai-input{font-size:13px;padding:9px 11px}
+  .ai-send{padding:9px 13px;font-size:12.5px}
+  .demo-chips{gap:5px}
+  .chip{font-size:11px;padding:4px 10px}
+
+  /* hint box: full width */
+  .hint-box{max-width:100%;border-radius:12px}
+  .hint-demos{padding:12px 16px}
+  .hint-head{padding:16px 16px 0}
+
+  /* vcard row: stack on mobile */
+  .vcp-card-row{flex-direction:column;align-items:flex-start;gap:8px}
+
+  /* insight popup: full width bottom sheet */
+  .insight-popup{
+    left:0;right:0;bottom:104px;width:auto;
+    border-radius:12px 12px 0 0;
+    margin:0 8px;
+  }
+
+  /* topbar: tighter */
+  .topbar{padding:0 14px}
+}
+
+</style>
+</head>
+<body>
+<div class="app">
+<div class="topbar">
+  <div style="display:flex;align-items:center;gap:20px">
+    <div class="logo">zip<span>hq</span></div>
+    <div class="breadcrumb"><span>Home</span><span>›</span><b>New Purchase Request</b></div>
+  </div>
+  <div style="display:flex;align-items:center;gap:10px">
+    <div class="poc-badge">✦ AI Intake PoC · Shir Star</div>
+    <span style="font-size:12px;color:var(--tx2)">Maya Cohen</span>
+    <div class="avatar">MC</div>
+  </div>
+</div>
+
+<div class="main">
+  <!-- ICON RAIL -->
+  <div class="icon-rail">
+    <button class="rail-btn" id="railHome" title="Home" onclick="goHome()">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9.5L12 3l9 6.5V20a1 1 0 01-1 1H4a1 1 0 01-1-1V9.5z"/><path d="M9 21V12h6v9"/></svg>
+    </button>
+    <div class="rail-separator"></div>
+    <button class="rail-btn" id="railRecent" title="Recent requests" onclick="toggleRecentDrawer()">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+    </button>
+  </div>
+
+  <!-- RECENT DRAWER -->
+  <div class="recent-drawer" id="recentDrawer">
+    <div class="recent-drawer-head">
+      <div class="recent-drawer-title">Recent</div>
+      <button class="recent-drawer-close" onclick="toggleRecentDrawer()">✕</button>
+    </div>
+    <div class="recent-drawer-body" id="recentSidebarBody"></div>
+  </div>
+
+  <div class="content">
+    <div class="form-area" id="formArea">
+      <div style="max-width:660px;margin:0 auto">
+
+        <!-- AI BAR — always visible, prominent -->
+        <div style="margin-bottom:8px">
+          <div style="font-size:20px;font-weight:600;letter-spacing:-.4px;color:var(--tx);margin-bottom:4px">New Purchase Request</div>
+          <div style="font-size:13px;color:var(--tx2);margin-bottom:20px">Marketing Manager · Maya Cohen</div>
+        </div>
+
+        <div class="ai-bar">
+          <div class="ai-bar-label"><div class="ai-pulse"></div>Add your request details</div>
+          <div class="ai-input-row">
+            <input class="ai-input" id="aiInput" placeholder="e.g. replicate my last approved Google Ads PR with double the budget for Q1…" onkeydown="if(event.key==='Enter')handleAI()"/>
+            <button class="ai-send" onclick="handleAI()">Send ↵</button>
+          </div>
+          <div class="demo-chips">
+            <div class="chip" onclick="runDemo1()">💬 Demo 1 — Replicate last approved PR, increased budget</div>
+            <div class="chip" onclick="runDemo2()">💬 Demo 2 — New vendor request (Meta Ads)</div>
+          </div>
+        </div>
+
+        <!-- AI RESPONSE -->
+        <div class="ai-response" id="aiResponse">
+          <div class="ai-response-header">
+            <div class="ai-pulse"></div><span>Zip AI</span>
+            <div class="typing" id="aiTyping"><span></span><span></span><span></span></div>
+          </div>
+          <div class="ai-response-text" id="aiResponseText"></div>
+        </div>
+
+        <!-- FORM BODY — hidden until AI fills it -->
+        <div class="form-body" id="formBody">
+
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title"><div class="step done">✓</div>Request details</div>
+              <span class="ai-tag">✦ AI filled</span>
+            </div>
+            <div class="card-body">
+              <div class="field"><div class="label">Title <span class="req">*</span></div><input type="text" class="input ai-filled" id="fTitle"/></div>
+              <div class="field-row">
+                <div class="field"><div class="label">Category</div>
+                  <select class="select ai-filled" id="fCat">
+                    <option value="marketing">Marketing & Advertising</option>
+                    <option value="software">Software & SaaS</option>
+                    <option value="services">Professional Services</option>
+                    <option value="hardware">Hardware</option>
+                  </select>
+                </div>
+                <div class="field"><div class="label">Department</div>
+                  <select class="select ai-filled" id="fDept">
+                    <option value="marketing">Marketing</option>
+                    <option value="sales">Sales</option>
+                    <option value="engineering">Engineering</option>
+                    <option value="finance">Finance</option>
+                    <option value="operations">Operations</option>
+                    <option value="legal">Legal</option>
+                  </select>
+                </div>
+              </div>
+              <div class="field"><div class="label">Expense account</div>
+                <select class="select ai-filled" id="fExpense">
+                  <option value="6100">6100 · Advertising &amp; Promotions</option>
+                  <option value="6200">6200 · Software Subscriptions</option>
+                  <option value="6300">6300 · Professional Services</option>
+                  <option value="6400">6400 · Hardware &amp; Equipment</option>
+                  <option value="6500">6500 · Travel &amp; Events</option>
+                </select>
+              </div>
+              <div class="field"><div class="label">Description</div><textarea class="textarea ai-filled" id="fDesc"></textarea></div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title"><div class="step done">✓</div>Vendor</div>
+              <span class="ai-tag">✦ AI filled</span>
+            </div>
+            <div class="card-body">
+              <div class="field"><div class="label">Vendor name</div><input type="text" class="input ai-filled" id="fVendor"/></div>
+              <div id="vendorBlock"></div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title"><div class="step done">✓</div>Budget & timeline</div>
+              <span class="ai-tag">✦ AI filled</span>
+            </div>
+            <div class="card-body">
+              <div class="field-row">
+                <div class="field"><div class="label">Amount (USD)</div><input type="text" class="input ai-filled" id="fAmount"/></div>
+                <div class="field"><div class="label">Payment type</div>
+                  <select class="select ai-filled" id="fPay">
+                    <option value="vcard">💳 Google LLC Virtual Card (•••• 4821)</option>
+                    <option value="one-time">One-time · PO</option>
+                    <option value="monthly">Monthly recurring · PO</option>
+                    <option value="annual">Annual subscription · PO</option>
+                  </select>
+                </div>
+              </div>
+              <!-- Budget alert shown if over plan -->
+              <div id="budgetAlert" style="display:none;margin-top:10px"></div>
+              <!-- Virtual card prompt (Demo 1) -->
+              <div class="vcard-prompt" id="vcardPrompt">
+                <div class="vcp-head">
+                  <div class="vcp-icon">💳</div>
+                  <div>
+                    <div class="vcp-title">Previous PR was paid via virtual card — insufficient balance</div>
+                    <div class="vcp-sub">Checked against your active Zip Vendor Cards</div>
+                  </div>
+                </div>
+                <div class="vcp-card-row">
+                  <div class="vcp-card-chip">•••• 4821</div>
+                  <div class="vcp-card-info">
+                    <div class="vcp-card-name">Google Ads · Vendor Card</div>
+                    <div class="vcp-card-meta">Limit: $10,000/mo &nbsp;·&nbsp; <span id="vcardSpent"></span> used &nbsp;·&nbsp; <span id="vcardLeft" style="color:var(--red);font-weight:600"></span> remaining</div>
+                    <div class="vcp-bar"><div class="vcp-bar-fill" id="vcardBarFill" style="width:0%"></div></div>
+                  </div>
+                </div>
+                <div class="vcp-body" id="vcardBody"></div>
+                <div class="vcp-actions">
+                  <button class="vcp-btn primary" onclick="extendCard()">✉ Request card limit extension</button>
+                  <button class="vcp-btn ghost" onclick="skipCard()">Use a different payment method</button>
+                </div>
+                <div class="vcp-result" id="vcardResult"></div>
+              </div>
+              <div class="field-row" style="margin-top:12px">
+                <div class="field"><div class="label">Start date</div><input type="date" class="input ai-filled" id="fStart"/></div>
+                <div class="field"><div class="label">End date</div><input type="date" class="input ai-filled" id="fEnd"/></div>
+              </div>
+              <div class="field"><div class="label">Cost center</div>
+                <select class="select ai-filled" id="fCC">
+                  <option value="mkt-perf">Marketing – Performance</option>
+                  <option value="mkt-brand">Marketing – Brand</option>
+                  <option value="eng">Engineering</option>
+                  <option value="sales">Sales</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title"><div class="step done">✓</div>Approval route</div>
+              <span class="ai-tag">✦ AI inferred</span>
+            </div>
+            <div class="card-body"><div id="approvalRoute"></div></div>
+          </div>
+
+          <!-- COMPLIANCE SWEEP -->
+          <div class="compliance-sweep" id="complianceSweep">
+            <div class="sweep-header">
+              <div>
+                <div class="sweep-title" id="sweepTitle">🛡️ Running compliance checks…</div>
+                <div class="sweep-sub" id="sweepSub">Zip checks this vendor before every submission</div>
+              </div>
+            </div>
+            <div class="sweep-body">
+              <div class="sweep-grid" id="sweepGrid"></div>
+              <div id="sweepFindings"></div>
+              <div class="sweep-ok" id="sweepOK">✓ All checks passed — this PR is clear to submit</div>
+              <!-- New vendor explainer -->
+              <div class="new-vendor-explainer" id="newVendorExplainer">
+                <div class="nve-title">🆕 First-time vendor — what happens next?</div>
+                <div class="nve-step"><div class="nve-num">1</div><div class="nve-text"><b>Extended vendor checks</b> run now — OFAC sanctions, GDPR/DPA status, DORA scope, and a business verification via D&B.</div></div>
+                <div class="nve-step"><div class="nve-num">2</div><div class="nve-text"><b>Procurement reviews the vendor</b> — this takes 2–5 business days and may require the vendor to submit documentation.</div></div>
+                <div class="nve-step"><div class="nve-num">3</div><div class="nve-text"><b>Your PR may be delayed or declined</b> if the vendor fails any check. You'll be notified either way.</div></div>
+                <div style="margin-top:10px;font-size:11.5px;color:var(--tx3)">Tip: if your campaign has a hard start date, flag it in the description so procurement can prioritise.</div>
+              </div>
+            </div>
+          </div>
+
+        </div><!-- /form-body -->
+      </div>
+    </div>
+
+    <!-- RIGHT PANEL -->
+    <div class="right-panel">
+      <div class="panel-tabs">
+        <div class="panel-tab active" id="tabChat" onclick="switchTab('chat')">💬 Chat</div>
+        <div class="panel-tab" id="tabAgents" onclick="switchTab('agents')">🤖 Agents</div>
+      </div>
+      <div class="panel-content" id="panelContent"></div>
+    </div>
+
+  </div>
+</div>
+
+<div class="submit-bar">
+  <div class="submit-status">
+    <span id="statusDot" style="width:8px;height:8px;border-radius:50%;background:var(--bd);display:inline-block;flex-shrink:0;transition:background .4s"></span>
+    <span id="statusText">Fill in your request above to get started</span>
+  </div>
+  <div class="submit-actions">
+    <button class="btn btn-ghost">Save draft</button>
+    <button class="btn btn-primary" id="submitBtn" onclick="submitPR()">Submit for approval →</button>
+  </div>
+</div>
+
+<!-- FIRST-TIME HINT OVERLAY -->
+<div class="hint-overlay" id="hintOverlay">
+  <div class="hint-box">
+    <div class="hint-head">
+      <div class="hint-emoji">✦</div>
+      <div class="hint-title">Zip Intake Flow · Proof of Concept</div>
+      <div class="hint-sub">This is a design exploration showing how AI agents can make purchase requests faster and smarter. Pick a demo below to see it in action.</div>
+    </div>
+    <div class="hint-demos">
+      <button class="hint-demo" id="hintDemo1" type="button">
+        <div class="hint-demo-num">1</div>
+        <div class="hint-demo-text">
+          <div class="hint-demo-title">Replicate an existing approved PR</div>
+          <div class="hint-demo-desc">AI finds your last Google Ads PR, doubles the budget, and runs a virtual card check with a one-click extension request.</div>
+        </div>
+      </button>
+      <button class="hint-demo" id="hintDemo2" type="button">
+        <div class="hint-demo-num">2</div>
+        <div class="hint-demo-text">
+          <div class="hint-demo-title">Request a brand-new vendor</div>
+          <div class="hint-demo-desc">AI onboards Meta Ads for the first time, runs extended compliance checks, and flags GDPR and PR consistency issues before submission.</div>
+        </div>
+      </button>
+    </div>
+    <div class="hint-foot">
+      <button class="hint-skip" id="hintSkip" type="button">Skip — I'll explore on my own</button>
+    </div>
+  </div>
+</div>
+
+<!-- VENDOR INSIGHT POPUP -->
+<div class="insight-popup" id="insightPopup">
+  <div class="insight-header">
+    <span style="font-size:18px">🔍</span>
+    <span class="insight-title" id="insightTitle">Vendor Intelligence</span>
+    <span class="insight-close" onclick="closeInsight()">✕</span>
+  </div>
+  <div class="insight-body" id="insightBody"></div>
+</div>
+
+<script>
+// ── DATA ────────────────────────────────────────────────────────────
+const prHistory=[
+  {id:"PR-2847",title:"Google Ads – Q4 Performance Campaign",vendor:"Google LLC",vkey:"google",amount:"8500",cat:"marketing",just:"growth",desc:"Q4 performance campaign targeting high-intent SEM keywords to drive product signups. No customer personal data shared with vendor.",payType:"one-time",cc:"mkt-perf",start:"2024-10-01",end:"2024-12-31",date:"Nov 12, 2024"},
+  {id:"PR-2761",title:"Figma – Team Seat Renewal",vendor:"Figma Inc.",vkey:"figma",amount:"4200",cat:"software",just:"renewal",desc:"Annual renewal for 12 design team seats.",payType:"annual",cc:"mkt-brand",start:"2025-01-01",end:"2025-12-31",date:"Oct 3, 2024"},
+  {id:"PR-2690",title:"HubSpot Marketing Hub Upgrade",vendor:"HubSpot Inc.",vkey:"hubspot",amount:"12000",cat:"software",just:"expansion",desc:"Upgrade to Professional plan to support expanded automation workflows.",payType:"annual",cc:"mkt-perf",start:"2025-01-01",end:"2025-12-31",date:"Sep 18, 2024"},
+  {id:"PR-2544",title:"LinkedIn Campaign – Brand Awareness",vendor:"LinkedIn Corp.",vkey:"linkedin",amount:"6000",cat:"marketing",just:"growth",desc:"Sponsored content targeting enterprise decision-makers.",payType:"one-time",cc:"mkt-brand",start:"2024-08-01",end:"2024-10-31",date:"Aug 5, 2024"},
+];
+
+// Quarter budgets (marketing-performance cost center, Q1 2025)
+const quarterBudget={amount:30000,spent:22400,quarter:"Q1 2025"};
+
+const vendors={
+  google:{name:"Google LLC",cat:"Advertising Platform",isNew:false,contract:"Active · expires Dec 2025",spend:"$47,200 YTD",risk:"Low",compliance:"SOC 2 · ISO 27001",score:92,
+    contractTerms:"Max campaign spend $20,000 per quarter per insertion order.",
+    checks:[
+      {type:"periodic",icon:"🔒",name:"GDPR / Privacy",src:"DPA registry",msg:"DPA on file (Apr 2024). No privacy exposure detected.",status:"pass"},
+      {type:"periodic",icon:"🚨",name:"OFAC Screening",src:"OFAC SDN list + D&B",msg:"Vendor cleared. Not on OFAC SDN blacklist. TIN verified.",status:"pass"},
+      {type:"periodic",icon:"🏦",name:"DORA Scope",src:"EU DORA register",msg:"Vendor is not a critical ICT provider. Not in DORA scope.",status:"pass"},
+      {type:"periodic",icon:"🔎",name:"PR Consistency",src:"Vendor documentation + PR text",msg:"Description consistent with vendor capabilities. No conflicts.",status:"pass"},
+    ]},
+  meta:{name:"Meta Platforms Inc.",cat:"Advertising Platform",isNew:true,contract:"No active contract",spend:"$0 YTD",risk:"Medium",compliance:"GDPR review pending",score:61,
+    contractTerms:null,
+    checks:[
+      {type:"extended",icon:"🔒",name:"GDPR / Privacy",src:"DPA registry",msg:"No signed DPA on file. Meta's ad pixel transmits EU user identifiers (hashed email, browser ID). A Data Processing Agreement must be signed before this vendor can be approved.",status:"error"},
+      {type:"extended",icon:"🚨",name:"OFAC Screening",src:"OFAC SDN list + D&B",msg:"Vendor cleared. Meta Platforms Inc. not on OFAC SDN blacklist. TIN verified. D&B risk rating: Medium (new relationship).",status:"pass"},
+      {type:"extended",icon:"🏦",name:"DORA Scope",src:"EU DORA register",msg:"Vendor is not a critical ICT provider under DORA. No additional due diligence required.",status:"pass"},
+      {type:"extended",icon:"🔎",name:"PR Consistency",src:"Meta advertising docs + PR text",msg:"Conflict detected: PR states 'no customer data will be shared' but Meta's pixel integration requires user identifiers including hashed emails and browser fingerprints.",status:"error"},
+      {type:"extended",icon:"🏢",name:"Business Verification",src:"D&B + Procurement registry",msg:"Meta Platforms Inc. verified. Publicly listed company (NASDAQ: META). Procurement onboarding required before first PO can be issued.",status:"warning"},
+      {type:"extended",icon:"📄",name:"Contract & Legal",src:"Legal team",msg:"No master services agreement on file. Legal review required before vendor can be approved. Estimated 3–5 business days.",status:"warning"},
+    ]},
+  linkedin:{name:"LinkedIn Corp.",cat:"Advertising Platform",isNew:false,contract:"Active · expires Mar 2026",spend:"$18,900 YTD",risk:"Low",compliance:"SOC 2",score:88,
+    contractTerms:"Standard media buying terms. No spend cap per quarter.",
+    checks:[
+      {type:"periodic",icon:"🔒",name:"GDPR / Privacy",src:"DPA registry",msg:"DPA on file (Jan 2024). Compliant.",status:"pass"},
+      {type:"periodic",icon:"🚨",name:"OFAC Screening",src:"OFAC SDN list",msg:"Vendor cleared.",status:"pass"},
+      {type:"periodic",icon:"🏦",name:"DORA Scope",src:"EU DORA register",msg:"Not in DORA scope.",status:"pass"},
+      {type:"periodic",icon:"🔎",name:"PR Consistency",src:"Vendor docs + PR text",msg:"No inconsistencies found.",status:"pass"},
+    ]},
+  hubspot:{name:"HubSpot Inc.",cat:"Marketing SaaS",isNew:false,contract:"Active · expires Jan 2026",spend:"$36,000 YTD",risk:"Low",compliance:"SOC 2 · ISO 27001",score:95,
+    contractTerms:"Annual contract. Upgrades within existing plan are pre-approved up to $15k.",
+    checks:[
+      {type:"periodic",icon:"🔒",name:"GDPR / Privacy",src:"DPA registry",msg:"DPA on file. Compliant.",status:"pass"},
+      {type:"periodic",icon:"🚨",name:"OFAC Screening",src:"OFAC SDN list",msg:"Vendor cleared.",status:"pass"},
+      {type:"periodic",icon:"🏦",name:"DORA Scope",src:"EU DORA register",msg:"Not in DORA scope.",status:"pass"},
+      {type:"periodic",icon:"🔎",name:"PR Consistency",src:"Vendor docs + PR text",msg:"No inconsistencies found.",status:"pass"},
+    ]},
+  figma:{name:"Figma Inc.",cat:"Design Tools",isNew:false,contract:"Active · expires Oct 2025",spend:"$8,400 YTD",risk:"Low",compliance:"SOC 2",score:90,
+    contractTerms:"Per-seat annual pricing.",
+    checks:[
+      {type:"periodic",icon:"🔒",name:"GDPR / Privacy",src:"DPA registry",msg:"DPA on file. Compliant.",status:"pass"},
+      {type:"periodic",icon:"🚨",name:"OFAC Screening",src:"OFAC SDN list",msg:"Vendor cleared.",status:"pass"},
+      {type:"periodic",icon:"🏦",name:"DORA Scope",src:"EU DORA register",msg:"Not in DORA scope.",status:"pass"},
+      {type:"periodic",icon:"🔎",name:"PR Consistency",src:"Vendor docs + PR text",msg:"No inconsistencies found.",status:"pass"},
+    ]},
+};
+
+function getKey(n){
+  const l=n.toLowerCase();
+  if(l.includes('google'))return'google';
+  if(l.includes('meta')||l.includes('facebook'))return'meta';
+  if(l.includes('linkedin'))return'linkedin';
+  if(l.includes('hubspot'))return'hubspot';
+  if(l.includes('figma'))return'figma';
+  return null;
+}
+
+let currentTab='chat';
+let agentLog=[];
+
+// ── TABS ──────────────────────────────────────────────────────────
+function switchTab(t){
+  currentTab=t;
+  ['chat','agents'].forEach(name=>{
+    const el=document.getElementById('tab'+name.charAt(0).toUpperCase()+name.slice(1));
+    if(el)el.classList.toggle('active',name===t);
+  });
+  if(t==='chat')renderChat();
+  else renderAgents();
+}
+
+function renderHistory(){renderChat();}
+
+// ── CHAT ──────────────────────────────────────────────────────────
+const chatContacts=[
+  {id:'vendor',name:'Google Vendor Support',role:'Vendor contact',initials:'G',color:'#1A56DB',online:true},
+  {id:'sarah',name:'Sarah Levy',role:'Marketing Director (approver)',initials:'SL',color:'#0E9F6E',online:true},
+  {id:'david',name:'David Park',role:'VP Finance (approver)',initials:'DP',color:'#7E3AF2',online:false},
+  {id:'procurement',name:'Procurement Team',role:'Procurement',initials:'PR',color:'#C27803',online:true},
+];
+
+let chatState={active:'sarah',threads:{'vendor':[],'sarah':[],'david':[],'procurement':[]}};
+
+const autoReplies={
+  vendor:['Thanks for reaching out! Happy to help with your campaign setup. What would you like to know?','We can confirm that pricing is per CPM. Let me know if you need the insertion order template.','Our support team typically responds within 2 business hours. I\'ll flag this to the account manager.'],
+  sarah:['Hi Maya! I\'ll review this as soon as it lands in my queue.','Budget looks reasonable for Q1. Do you have a brief with the targeting strategy?','Approved in principle — just waiting on the compliance check to clear.'],
+  david:['Hi Maya, I\'ll need to verify this against the Q1 budget allocation. Give me a moment.','The amount is fine. Just make sure the cost center is correct before submitting.','Budget approved. Please make sure the expense account code is 6100.'],
+  procurement:['Got it — we\'ll start the vendor onboarding process once the PR is submitted.','Please attach the vendor\'s W-9 to the PR before submission.','We can fast-track this one since Google is an existing vendor.'],
+};
+
+function renderChat(){
+  const pc=document.getElementById('panelContent');
+  const contact=chatContacts.find(c=>c.id===chatState.active);
+  const msgs=chatState.threads[chatState.active]||[];
+
+  let recipientsHtml=chatContacts.map(c=>`
+    <div class="chat-recipient ${c.id===chatState.active?'active':''}" onclick="setActiveChatContact('${c.id}')">
+      <div style="width:18px;height:18px;border-radius:50%;background:${c.color};color:#fff;font-size:8px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">${c.initials}</div>
+      <span>${c.name.split(' ')[0]}</span>
+      <div class="chat-recipient-dot ${c.online?'':'offline'}"></div>
+    </div>`).join('');
+
+  let msgsHtml = msgs.length===0
+    ? (document.getElementById('aiInput').value.trim()
+        ? `<div class="chat-empty">Send a message to ${contact.name.split(' ')[0]} with any questions related to this purchase request</div>`
+        : `<div class="chat-empty" style="opacity:.55">Chat is not available yet —<br>add your request details first.</div>`)
+    : msgs.map(m=>`
+      <div class="chat-msg ${m.from==='me'?'me':'them'}">
+        <div class="chat-bubble ${m.from==='me'?'me':'them'}">${m.text}</div>
+        <div class="chat-meta">${m.time}</div>
+      </div>`).join('');
+
+  pc.innerHTML=`
+    <div class="chat-wrap" id="chatWrap">
+      <div class="chat-to-bar">
+        <div class="chat-to-label">Send to</div>
+        <div class="chat-recipients">${recipientsHtml}</div>
+      </div>
+      <div class="chat-messages" id="chatMessages">${msgsHtml}</div>
+      <div id="chatTyping" style="display:none" class="chat-typing">
+        <div style="width:20px;height:20px;border-radius:50%;background:${contact.color};color:#fff;font-size:8px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">${contact.initials}</div>
+        <div class="chat-typing-dots"><span></span><span></span><span></span></div>
+      </div>
+      <div class="chat-input-row">
+        <textarea class="chat-input" id="chatInput" placeholder="Message ${contact.name.split(' ')[0]}…" rows="1" onkeydown="chatKeydown(event)"></textarea>
+        <button class="chat-send-btn" onclick="sendChatMsg()">↑</button>
+      </div>
+    </div>`;
+  scrollChatToBottom();
+}
+
+function setActiveChatContact(id){
+  chatState.active=id;
+  renderChat();
+}
+
+function chatKeydown(e){
+  if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendChatMsg();}
+}
+
+function sendChatMsg(){
+  const input=document.getElementById('chatInput');
+  const text=input.value.trim();
+  if(!text)return;
+  const now=new Date();
+  const time=now.getHours().toString().padStart(2,'0')+':'+now.getMinutes().toString().padStart(2,'0');
+  chatState.threads[chatState.active].push({from:'me',text,time});
+  input.value='';
+  renderChat();
+  // auto-reply
+  const typing=document.getElementById('chatTyping');
+  if(typing)typing.style.display='flex';
+  const replies=autoReplies[chatState.active];
+  const reply=replies[chatState.threads[chatState.active].length % replies.length];
+  setTimeout(()=>{
+    if(typing)typing.style.display='none';
+    const replyTime=new Date();
+    const rt=replyTime.getHours().toString().padStart(2,'0')+':'+replyTime.getMinutes().toString().padStart(2,'0');
+    chatState.threads[chatState.active].push({from:'them',text:reply,time:rt});
+    renderChat();
+  },1400);
+}
+
+function scrollChatToBottom(){
+  const el=document.getElementById('chatMessages');
+  if(el)setTimeout(()=>el.scrollTop=el.scrollHeight,50);
+}
+
+function renderAgents(){
+  const pc=document.getElementById('panelContent');
+  if(!agentLog.length){
+    pc.innerHTML='<div class="section-label">Agents</div><div class="empty-state">Agents run automatically when a vendor is identified.<br>Start a request above to see them in action.</div>';
+    return;
+  }
+  const bgs={vendor:'#EBF0FD',gdpr:'#EDE9FE',ofac:'#FDE8E8',dora:'#EBF0FD',inconsistency:'#FEF3CD',budget:'#FEF3CD',business:'#F3F4F6',contract:'#F3F4F6'};
+  let h='<div class="section-label">Running agents</div>';
+  agentLog.forEach(a=>{
+    h+=`<div class="agent-item">
+      <div class="agent-icon ${a.status==='running'?'spinning':''}" style="background:${bgs[a.type]||'#F3F4F6'}">${a.icon||'⚙️'}</div>
+      <div class="agent-body">
+        <div class="agent-name">${a.name}</div>
+        <div class="agent-src">${a.src||''}</div>
+        <div class="agent-msg">${a.msg}</div>
+        <span class="agent-status ${a.status}">${a.label}</span>
+      </div>
+    </div>`;
+  });
+  pc.innerHTML=h;
+}
+
+// ── AI RESPONSE ───────────────────────────────────────────────────
+function showAIResp(text,delay=1300){
+  const box=document.getElementById('aiResponse');
+  const txt=document.getElementById('aiResponseText');
+  const typ=document.getElementById('aiTyping');
+  box.classList.add('show');
+  typ.style.display='flex';txt.innerHTML='';
+  setTimeout(()=>{typ.style.display='none';txt.innerHTML=text;},delay);
+}
+
+// ── DEMO 1: Replicate Google Ads, ~double budget ──────────────────
+function runDemo1(){
+  document.getElementById('aiInput').value='Replicate my last approved Google Ads PR but increase the budget from $8,500 to $17,000 — Q1 expansion campaign.';
+  showAIResp(`Found your last approved PR: <b>PR-2847 – Google Ads Q4 Performance Campaign ($8,500)</b>. Pre-filling all details and updating the amount to <b>$17,000</b> for Q1. Running periodic vendor checks in the background…`,1400);
+  setTimeout(()=>{
+    fillForm({
+      title:'Google Ads – Q1 Expansion Campaign',vendor:'Google LLC',vkey:'google',
+      amount:'17000',cat:'marketing',just:'growth',
+      desc:'Q1 expansion campaign building on the Q4 performance run. Targeting high-intent SEM keywords to drive product signups. Budget increase supports broader keyword coverage and A/B creative testing. No customer personal data shared with vendor.',
+      payType:'vcard',cc:'mkt-perf',start:'2025-01-06',end:'2025-03-31'
+    });
+  },2400);
+  // virtual card check fires after form loads
+  setTimeout(()=>showVirtualCard(17000),3600);
+}
+
+// ── DEMO 2: New vendor Meta ───────────────────────────────────────
+function runDemo2(){
+  document.getElementById('aiInput').value="I want to run a Meta/Facebook Ads campaign for Q1 — new vendor, $12,000 budget for performance marketing.";
+  showAIResp(`Got it — new vendor request for <b>Meta Platforms Inc.</b> Pre-filling the form. Since this is the <b>first time we're working with this vendor</b>, I'm running an extended compliance check. This may add steps before your PR can be sent for approval.`,1400);
+  setTimeout(()=>{
+    fillForm({
+      title:'Meta Ads – Q1 Performance Campaign',vendor:'Meta Platforms Inc.',vkey:'meta',
+      amount:'12000',cat:'marketing',just:'new',
+      desc:"Q1 paid social campaign on Meta/Facebook targeting acquisition audiences. No customer data will be shared — using interest-based targeting only.",
+      payType:'one-time',cc:'mkt-perf',start:'2025-01-13',end:'2025-03-31'
+    });
+  },2400);
+}
+
+// ── FILL FORM ─────────────────────────────────────────────────────
+function fillForm(d){
+  setF('fTitle',d.title);
+  setF('fCat',d.cat||'marketing');
+  setF('fDesc',d.desc||'');
+  setF('fVendor',d.vendor||'');
+  setF('fAmount',parseInt(d.amount).toLocaleString());
+  setF('fPay',d.payType||'one-time');
+  setF('fCC',d.cc||'mkt-perf');
+  document.getElementById('fStart').value=d.start||'';
+  document.getElementById('fEnd').value=d.end||'';
+
+  // reset virtual card prompt
+  const vcp = document.getElementById('vcardPrompt');
+  if(vcp){ vcp.classList.remove('show'); }
+  const vcr = document.getElementById('vcardResult');
+  if(vcr){ vcr.className='vcp-result'; vcr.innerHTML=''; }
+  const vca = document.querySelector('.vcp-actions');
+  if(vca){ vca.style.display='flex'; }
+
+  // show form
+  document.getElementById('formBody').classList.add('show');
+  if(currentTab==='chat')renderChat();
+
+  // vendor intel inline
+  const vd=vendors[d.vkey];
+  if(vd) showVendorIntel(d.vkey);
+
+  // budget alert
+  showBudgetAlert(parseInt(d.amount),d.vkey);
+
+  // approval route
+  buildApprovalRoute(parseInt(d.amount),d.cc==='sales',d.just==='new');
+
+  // compliance sweep
+  document.getElementById('complianceSweep').classList.add('show');
+  document.getElementById('sweepFindings').innerHTML='';
+  document.getElementById('sweepOK').classList.remove('show');
+  document.getElementById('newVendorExplainer').classList.remove('show');
+
+  const isNew=vd&&vd.isNew;
+  document.getElementById('sweepTitle').textContent=isNew
+    ?'🛡️ Extended compliance scan — first-time vendor'
+    :'🛡️ Periodic compliance check — existing vendor';
+  document.getElementById('sweepSub').textContent=isNew
+    ?'Running full checks since this vendor has never been used before'
+    :'Routine checks run on every PR submission for this vendor';
+
+  agentLog=[];
+  setTimeout(()=>runComplianceSweep(d.vkey,isNew),600);
+
+  document.getElementById('statusDot').style.background='var(--amber)';
+  document.getElementById('statusText').textContent='Compliance checks running…';
+}
+
+function setF(id,val){
+  const el=document.getElementById(id);if(!el)return;el.value=val;
+}
+
+// ── VENDOR INTEL INLINE ───────────────────────────────────────────
+function showVendorIntel(key){
+  const d=vendors[key];if(!d)return;
+  document.getElementById('vendorBlock').innerHTML=`
+    <div class="vendor-card">
+      <div class="vendor-header">
+        <div class="vendor-logo">${d.name[0]}</div>
+        <div>
+          <div style="font-weight:600;font-size:13px">${d.name}</div>
+          <div style="font-size:11.5px;color:var(--tx3)">${d.cat}</div>
+        </div>
+        <div style="margin-left:auto;display:flex;align-items:center;gap:5px">
+          <div class="dot ${d.isNew?'amber':'green'}"></div>
+          <span style="font-size:11.5px;color:var(--tx2);font-weight:500">${d.isNew?'New vendor — extended checks':'Preferred vendor'}</span>
+        </div>
+      </div>
+      <div style="padding:9px 13px;font-size:12px;color:var(--tx2);border-top:1px solid var(--bd)">
+        ${d.contract} &nbsp;·&nbsp; ${d.spend}
+        ${d.contractTerms?`<div style="margin-top:4px;color:var(--tx3)">📋 Contract terms: ${d.contractTerms}</div>`:''}
+      </div>
+    </div>`;
+  // show insight popup
+  const sc=d.score>=80?'#0E9F6E':d.score>=60?'#C27803':'#C81E1E';
+  document.getElementById('insightTitle').textContent=d.name+' · Vendor Intelligence';
+  document.getElementById('insightBody').innerHTML=`
+    <div class="insight-row"><span class="insight-key">Status</span><span class="insight-val ${d.isNew?'amber':'green'}">${d.isNew?'⚠ New vendor':'✓ Preferred vendor'}</span></div>
+    <div class="insight-row"><span class="insight-key">Contract</span><span class="insight-val">${d.contract}</span></div>
+    <div class="insight-row"><span class="insight-key">YTD spend</span><span class="insight-val">${d.spend}</span></div>
+    <div class="insight-row"><span class="insight-key">Risk</span><span class="insight-val ${d.risk==='Low'?'green':'amber'}">${d.risk}</span></div>
+    <div class="insight-row"><span class="insight-key">Compliance</span><span class="insight-val">${d.compliance}</span></div>
+    <div class="score-bar-wrap">
+      <span style="font-size:11.5px;color:var(--tx2);white-space:nowrap">Vendor score</span>
+      <div class="score-bar"><div class="score-fill" id="scoreFill" style="width:0%;background:${sc}"></div></div>
+      <span style="font-size:12px;font-weight:700;color:${sc}">${d.score}</span>
+    </div>`;
+  document.getElementById('insightPopup').classList.add('show');
+  setTimeout(()=>{const f=document.getElementById('scoreFill');if(f)f.style.width=d.score+'%';},80);
+}
+
+function closeInsight(){document.getElementById('insightPopup').classList.remove('show');}
+
+// ── BUDGET ALERT ──────────────────────────────────────────────────
+function showBudgetAlert(amount,vkey){
+  const el=document.getElementById('budgetAlert');
+  const remaining=quarterBudget.amount-quarterBudget.spent;
+  const over=amount-remaining;
+  const vd=vendors[vkey];
+
+  if(over>0){
+    // over quarterly plan
+    el.style.display='block';
+    el.innerHTML=`<div style="background:var(--amber-l);border:1px solid var(--amber);border-radius:var(--rs);padding:10px 12px;font-size:12.5px;color:var(--amber)">
+      ⚠ <b>Exceeds Q1 budget plan by $${over.toLocaleString()}</b> — $${quarterBudget.spent.toLocaleString()} already committed of $${quarterBudget.amount.toLocaleString()} allocated for ${quarterBudget.quarter} (Marketing – Performance).
+      ${vd&&vd.contractTerms?`<div style="margin-top:5px;font-size:12px;color:var(--tx2)">📋 Note: Your contract with this vendor states: <em>${vd.contractTerms}</em></div>`:''}
+    </div>`;
+  } else if(vd&&vd.contractTerms){
+    el.style.display='block';
+    el.innerHTML=`<div style="background:var(--sur2);border:1px solid var(--bd);border-radius:var(--rs);padding:9px 12px;font-size:12px;color:var(--tx2)">
+      📋 Contract terms: <em>${vd.contractTerms}</em>
+    </div>`;
+  } else {
+    el.style.display='none';
+  }
+}
+
+// ── COMPLIANCE SWEEP ──────────────────────────────────────────────
+function runComplianceSweep(key,isNew){
+  const vd=vendors[key];if(!vd)return;
+  const checks=vd.checks;
+
+  // init all as running
+  const state=checks.map(c=>({...c,currentStatus:'running',currentLabel:'Running'}));
+  renderSweep(state);
+
+  // add to agent log panel
+  checks.forEach(c=>{
+    agentLog.push({type:c.name.toLowerCase().replace(/\//g,'').replace(/ /g,'_').replace(/&/g,''),icon:c.icon,name:c.name,src:c.src,msg:c.type==='extended'?'Running extended check…':'Running periodic check…',status:'running',label:'Running'});
+  });
+  if(currentTab==='agents')renderAgents();
+
+  let allPass=true;
+  const findings=[];
+
+  checks.forEach((c,i)=>{
+    const delay=900+(i*900);
+    setTimeout(()=>{
+      state[i].currentStatus=c.status==='pass'?'done':c.status==='warning'?'warning':'error';
+      state[i].currentLabel=c.status==='pass'?'✓ Clear':c.status==='warning'?'⚠ Review needed':'✗ Blocked';
+      state[i].currentMsg=c.msg;
+      if(c.status!=='pass')allPass=false;
+      if(c.status!=='pass')findings.push({type:c.status,title:c.name,msg:c.msg,src:c.src});
+
+      // update agent log
+      if(agentLog[i]){
+        agentLog[i].msg=c.msg;
+        agentLog[i].status=c.status==='pass'?'done':c.status==='warning'?'warning':'error';
+        agentLog[i].label=c.status==='pass'?'✓ Clear':c.status==='warning'?'⚠ Review needed':'✗ Found issue';
+        if(currentTab==='agents')renderAgents();
+      }
+
+      renderSweep(state);
+
+      // last check
+      if(i===checks.length-1){
+        setTimeout(()=>{
+          // show findings
+          const fw=document.getElementById('sweepFindings');
+          fw.innerHTML=findings.map(f=>`
+            <div class="sweep-finding ${f.type==='error'?'error':''} show">
+              <div class="sf-icon">${f.type==='error'?'✕':'⚠'}</div>
+              <div>
+                <div class="sf-title ${f.type==='error'?'error':''}">${f.title}</div>
+                <div class="sf-msg">${f.msg}</div>
+                <div style="font-size:10.5px;color:var(--tx3);margin-top:4px;font-style:italic">Source: ${f.src}</div>
+              </div>
+            </div>`).join('');
+
+          if(allPass){
+            document.getElementById('sweepOK').classList.add('show');
+            document.getElementById('statusDot').style.background='var(--green)';
+            document.getElementById('statusText').textContent='All checks passed · Ready to submit';
+          } else {
+            const errors=findings.filter(f=>f.type==='error').length;
+            const warns=findings.filter(f=>f.type==='warning').length;
+            document.getElementById('statusDot').style.background=errors?'var(--amber)':'var(--amber)';
+            document.getElementById('statusText').textContent=
+              `${errors?errors+' issue'+(errors>1?'s':''):''} ${warns?warns+' review item'+(warns>1?'s':''):''}`.trim()+' · Review before submitting';
+          }
+
+          // show new vendor explainer
+          if(isNew){
+            document.getElementById('newVendorExplainer').classList.add('show');
+          }
+        },300);
+      }
+    },delay);
+  });
+}
+
+function renderSweep(state){
+  document.getElementById('sweepGrid').innerHTML=state.map(s=>`
+    <div class="sa ${s.currentStatus==='running'?'running':s.currentStatus==='done'?'done':s.currentStatus==='warning'?'warning':'error'}">
+      <div class="sa-header">
+        <span class="sa-icon">${s.icon}</span>
+        <span class="sa-name">${s.name}</span>
+        <span class="sa-badge ${s.currentStatus==='running'?'running':s.currentStatus==='done'?'done':s.currentStatus==='warning'?'warning':'error'}">${s.currentLabel||'Running'}</span>
+      </div>
+      <div class="sa-msg">${s.currentMsg||s.msg}</div>
+      <div class="sa-src">${s.type==='extended'?'Extended check':'Periodic check'} · ${s.src}</div>
+    </div>`).join('');
+}
+
+// ── APPROVAL ROUTE ────────────────────────────────────────────────
+function buildApprovalRoute(amount,sales,newVendor){
+  let steps=[
+    {name:'Maya Cohen',role:'Requester (you)',done:true,init:'MC'},
+    {name:sales?'James Ruiz':'Sarah Levy',role:sales?'Sales Director':'Marketing Director',done:false,init:sales?'JR':'SL'},
+  ];
+  if(newVendor)steps.push({name:'Procurement Team',role:'New vendor onboarding & review',done:false,init:'🏢'});
+  if(amount>10000)steps.push({name:'David Park',role:'VP Finance',done:false,init:'DP'});
+  steps.push({name:'Procurement',role:'Final PO issuance',done:false,init:'📦'});
+
+  let h='<div style="display:flex;flex-direction:column">';
+  steps.forEach((s,i)=>{
+    const last=i===steps.length-1;
+    h+=`<div style="display:flex;gap:10px;align-items:flex-start">
+      <div style="display:flex;flex-direction:column;align-items:center">
+        <div style="width:28px;height:28px;border-radius:50%;background:${s.done?'var(--green)':'var(--sur2)'};border:1.5px solid ${s.done?'var(--green)':'var(--bd2)'};display:flex;align-items:center;justify-content:center;font-size:10.5px;font-weight:700;color:${s.done?'white':'var(--tx2)'}">
+          ${s.done?'✓':s.init.length<=2?s.init:s.init[0]}
+        </div>
+        ${!last?'<div style="width:2px;height:20px;background:var(--bd);margin:2px auto"></div>':''}
+      </div>
+      <div style="padding-bottom:${last?0:14}px;padding-top:5px">
+        <div style="font-size:12.5px;font-weight:600;color:var(--tx)">${s.name}</div>
+        <div style="font-size:11.5px;color:var(--tx3)">${s.role}</div>
+      </div>
+    </div>`;
+  });
+  h+='</div>';
+  if(amount>15000)h+=`<div style="background:var(--amber-l);border:1px solid var(--amber);border-radius:var(--rs);padding:8px 10px;margin-top:12px;font-size:12px;color:var(--amber)">⚠ Amount exceeds $15k — additional Finance approval required</div>`;
+  if(newVendor)h+=`<div style="background:var(--orange-l);border:1px solid var(--orange);border-radius:var(--rs);padding:8px 10px;margin-top:8px;font-size:12px;color:var(--orange)">⚠ New vendor — procurement onboarding may extend timeline by 2–5 business days</div>`;
+  document.getElementById('approvalRoute').innerHTML=h;
+}
+
+// ── HISTORY PREFILL ───────────────────────────────────────────────
+function prefillFromHistory(i){
+  const pr=prHistory[i];
+  document.getElementById('aiInput').value=`Replicate ${pr.id} — ${pr.title}`;
+  showAIResp(`Pre-filling from your approved <b>${pr.id} – ${pr.title}</b>. All details copied. Adjust any field before submitting.`,1100);
+  setTimeout(()=>fillForm(pr),1600);
+}
+
+// ── SUBMIT ────────────────────────────────────────────────────────
+function submitPR(){
+  const btn=document.getElementById('submitBtn');
+  btn.textContent='Submitting…';btn.disabled=true;
+  setTimeout(()=>{
+    btn.className='btn btn-success';
+    btn.textContent='✓ Submitted — PR-2891 created';
+    document.getElementById('statusText').textContent='PR-2891 submitted · Pending Director approval';
+    document.getElementById('statusDot').style.background='var(--green)';
+  },1300);
+}
+
+// ── HANDLE AI INPUT ───────────────────────────────────────────────
+function handleAI(){
+  const v=document.getElementById('aiInput').value.trim();if(!v)return;
+  const l=v.toLowerCase();
+  if(l.includes('meta')||l.includes('facebook'))return runDemo2();
+  if(l.includes('linkedin'))return (() => {
+    showAIResp(`Found <b>PR-2544 – LinkedIn Campaign ($6,000)</b>. Replicating for Q1 with updated amount.`,1200);
+    setTimeout(()=>fillForm({...prHistory[3],title:'LinkedIn Ads – Q1 Brand Campaign',amount:'9000',start:'2025-01-13',end:'2025-03-31'}),1800);
+  })();
+  runDemo1();
+}
+
+// ── VIRTUAL CARD ─────────────────────────────────────────────────
+function showVirtualCard(amount){
+  const cardLimit=10000;
+  const spent=9200; // $9,200 already used from Q4 campaign
+  const left=cardLimit-spent;
+  const needed=amount;
+  document.getElementById('vcardSpent').textContent='$'+spent.toLocaleString();
+  document.getElementById('vcardLeft').textContent='$'+left.toLocaleString();
+  setTimeout(()=>{document.getElementById('vcardBarFill').style.width=(spent/cardLimit*100)+'%';},100);
+  document.getElementById('vcardBody').innerHTML=
+    `Your Q4 Google Ads campaign (PR-2847) was paid via this card. It has <b>$${left.toLocaleString()} remaining</b> — not enough to cover this request of <b>$${amount.toLocaleString()}</b>. You're short by <b>$${(needed-left).toLocaleString()}</b>. Would you like to request a limit extension so this card can be used again?`;
+  document.getElementById('vcardPrompt').classList.add('show');
+}
+
+function extendCard(){
+  const r=document.getElementById('vcardResult');
+  r.className='vcp-result show sent';
+  r.innerHTML='✓ Extension request sent to Finance — Sarah Levy notified. You\'ll hear back within 1 business day. Your PR has been saved as a draft in the meantime.';
+  document.querySelector('.vcp-actions').style.display='none';
+}
+
+function skipCard(){
+  const r=document.getElementById('vcardResult');
+  r.className='vcp-result show skip';
+  r.innerHTML='Got it — this PR will be routed through standard PO payment instead. The virtual card won\'t be used.';
+  document.querySelector('.vcp-actions').style.display='none';
+}
+
+// ── FIRST-TIME HINT ───────────────────────────────────────────────
+function closeHint(){
+  const el=document.getElementById('hintOverlay');
+  if(el){el.style.display='none';}
+}
+
+// ── RECENT DRAWER ────────────────────────────────────────────────
+let activePRId=null;
+let drawerOpen=false;
+
+function toggleRecentDrawer(){
+  drawerOpen=!drawerOpen;
+  document.getElementById('recentDrawer').classList.toggle('open',drawerOpen);
+  document.getElementById('railRecent').classList.toggle('active',drawerOpen);
+  if(drawerOpen)renderRecentSidebar();
+}
+
+function goHome(){
+  // Reset form to initial state
+  document.getElementById('formBody').classList.remove('show');
+  document.getElementById('aiResponse').classList.remove('show');
+  document.getElementById('aiInput').value='';
+  document.getElementById('complianceSweep').classList.remove('show');
+  document.getElementById('vcardPrompt').classList.remove('show');
+  document.getElementById('vendorBlock').innerHTML='';
+  document.getElementById('approvalRoute').innerHTML='';
+  document.getElementById('sweepFindings').innerHTML='';
+  document.getElementById('sweepOK').classList.remove('show');
+  document.getElementById('newVendorExplainer').classList.remove('show');
+  document.getElementById('budgetAlert').style.display='none';
+  document.getElementById('statusDot').style.background='var(--bd)';
+  document.getElementById('statusText').textContent='Fill in your request above to get started';
+  const btn=document.getElementById('submitBtn');
+  btn.className='btn btn-primary';btn.textContent='Submit for approval →';btn.disabled=false;
+  document.getElementById('insightPopup').classList.remove('show');
+  agentLog=[];activePRId=null;
+  if(drawerOpen)toggleRecentDrawer();
+  if(currentTab==='chat')renderChat();
+}
+
+function renderRecentSidebar(){
+  const el=document.getElementById('recentSidebarBody');
+  if(!el)return;
+  el.innerHTML=prHistory.map((pr,i)=>`
+    <div class="recent-pr-item ${activePRId===pr.id?'active-pr':''}" onclick="prefillFromHistory(${i}); activePRId='${pr.id}'; renderRecentSidebar();">
+      <div class="recent-pr-title">${pr.title}</div>
+      <div class="recent-pr-meta">${pr.id}</div>
+      <span class="recent-pr-tag approved">✓ approved</span>
+    </div>`).join('');
+}
+
+// ── INIT ──────────────────────────────────────────────────────────
+document.getElementById('hintDemo1').addEventListener('click',function(){closeHint();setTimeout(runDemo1,80);});
+document.getElementById('hintDemo2').addEventListener('click',function(){closeHint();setTimeout(runDemo2,80);});
+document.getElementById('hintSkip').addEventListener('click',closeHint);
+renderChat();
+renderRecentSidebar();
+</script>
+<script defer src="/_vercel/insights/script.js"></script>
+</body>
+</html>
